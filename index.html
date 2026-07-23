@@ -1094,6 +1094,7 @@ function supprimerAct(nom){
 
 function renderMois(cid,mois,isAdmin){
   const d=S.mois[mois],lk=S.verrou&&!isAdmin,ro=lk?' ro':'';
+  const isAsso = currentUser && currentUser.role==='asso';
   const conf=computeConflicts();
   let mbtn='';
   const semaines=[];let cur=null;
@@ -1115,6 +1116,9 @@ function renderMois(cid,mois,isAdmin){
         ${weekRange?`<div style="font-size:11px;color:rgba(100,180,255,.85);font-weight:400;white-space:normal;margin-top:4px;line-height:1.4;">${weekRange}</div>`:''}
       </td>`:'';
       const ri2=r.ri;
+      // Calculer si cette ligne est verrouillée pour cette asso
+      const roAsso = isAsso && r.org && r.org.trim().toLowerCase() !== (currentUser.nom||'').trim().toLowerCase() ? ' ro' : '';
+      const roFinal = ro + roAsso;
       // Masquer les lignes "Particulier" pour les associations
       if(!isAdmin && currentUser && currentUser.role==='asso' && (r.org||'').trim().toLowerCase()==='particulier'){
         return; // ne pas afficher cette ligne
@@ -1122,21 +1126,21 @@ function renderMois(cid,mois,isAdmin){
       const isConf=conf.has(mois+'|'+ri2);
       rows+=`<tr data-crow="${mois}|${ri2}" class="sem-${si%2===0?'even':'odd'}${isF?' sc':''}${isConf?' conflict':''}">
         ${sc}
-        <td><textarea class="ei${ro}" rows="1" onInput="autoGrow(this)"
+        <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'org',this.value);autoSync('${mois}',${ri2})"
           style="min-width:80px" ${currentUser&&currentUser.role==='asso'?'readonly style="cursor:default;opacity:.7;"':''}>${x(r.org)}</textarea>
           <span data-org="${mois}-${ri2}" style="display:none;">${x(r.org)}</span></td>
-        <td><textarea class="ei${ro}" rows="1" onInput="autoGrow(this)"
+        <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'manif',this.value);autoSync('${mois}',${ri2})"
           style="min-width:160px">${x(r.manif)}</textarea></td>
-        <td><textarea class="ei${ro}" rows="2" onchange="upDateField('${mois}',${ri2},this)"
+        <td><textarea class="ei${roFinal}" rows="2" onchange="upDateField('${mois}',${ri2},this)"
           placeholder="jj/mm/aaaa"
           style="width:78px;text-align:center;resize:none;line-height:1.3;font-size:11px;">${x(r.date)}</textarea></td>
         <td style="min-width:150px;">${lieuSelects(mois,ri2,r,lk)}</td>
-        <td><input class="ei${ro}" value="${x(r.deb)}" placeholder="ex: 14h"
+        <td><input class="ei${roFinal}" value="${x(r.deb)}" placeholder="ex: 14h"
           onchange="upHeureField('${mois}',${ri2},'deb',this)"
           style="width:52px;text-align:center"></td>
-        <td><input class="ei${ro}" value="${x(r.fin)}" placeholder="ex: 18h"
+        <td><input class="ei${roFinal}" value="${x(r.fin)}" placeholder="ex: 18h"
           onchange="upHeureField('${mois}',${ri2},'fin',this)"
           style="width:52px;text-align:center"></td>
         <td class="cdate">${r.ddate||'—'}</td>
@@ -1150,10 +1154,10 @@ function renderMois(cid,mois,isAdmin){
           <option value="Validation définitive" ${r.trait==='Validation définitive'?'selected':''} style="background:#0D1F38;">✅ Validation définitive</option>
           <option value="Refus" ${r.trait==='Refus'?'selected':''} style="background:#0D1F38;">❌ Refus</option>
         </select></td>
-        <td><textarea class="ei${ro}" rows="1" onInput="autoGrow(this)"
+        <td><textarea class="ei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'rem',this.value);autoSync('${mois}',${ri2})"
           style="min-width:120px">${x(r.rem)}</textarea></td>
-        <td><input class="ei${ro}" value="${x(r.clubs)}"
+        <td><input class="ei${roFinal}" value="${x(r.clubs)}"
           onchange="upMField('${mois}',${ri2},'clubs',this.value);autoSync('${mois}',${ri2})"
           style="min-width:70px"></td>
         <td class="cdur" id="dur-${mois}-${ri2}" style="text-align:center;padding:5px;">${r.dur||'0'}</td>
@@ -1232,7 +1236,13 @@ function upMField(mois,ri,field,val){
 
   // Asso : ne peut modifier que ses propres lignes
   if(currentUser && currentUser.role==='asso'){
-    if(r.org && r.org !== currentUser.nom){
+    // Si la ligne appartient à quelqu'un d'autre (org rempli et différent du user)
+    if(r.org && r.org.trim().toLowerCase() !== currentUser.nom.trim().toLowerCase()){
+      toast('❌ Vous ne pouvez modifier que vos propres lignes.');
+      return;
+    }
+    // Si la ligne a une manifestation saisie par quelqu'un d'autre
+    if(!r.org && r.manif && field !== 'manif'){
       toast('❌ Vous ne pouvez modifier que vos propres lignes.');
       return;
     }
@@ -1597,13 +1607,13 @@ function renderAct(cid,nom,isAdmin){
     for(let li=0;li<maxRows;li++){
       const o=orgs[li]||null,p=imps[li]||null;
       tbody+=`<tr>
-        <td style="border-right:2px solid rgba(30,136,229,.25);"><textarea class="aei${ro}" rows="1" onInput="autoGrow(this)"
+        <td style="border-right:2px solid rgba(30,136,229,.25);"><textarea class="aei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upAEntry('${nom}','org',${mi},${li},this.value,'manif')" style="min-width:180px">${x(o?o.manif:'')}</textarea></td>
-        <td style="border-right:3px solid rgba(255,165,0,.4);"><textarea class="aei${ro}" rows="1" onInput="autoGrow(this)"
+        <td style="border-right:3px solid rgba(255,165,0,.4);"><textarea class="aei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upAEntry('${nom}','org',${mi},${li},this.value,'rem')" style="min-width:120px">${x(o?o.rem:'')}</textarea></td>
-        <td style="border-right:2px solid rgba(255,107,0,.2);"><textarea class="aei${ro}" rows="1" onInput="autoGrow(this)"
+        <td style="border-right:2px solid rgba(255,107,0,.2);"><textarea class="aei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upAEntry('${nom}','impact',${mi},${li},this.value,'manif')" style="min-width:180px">${x(p?p.manif:'')}</textarea></td>
-        <td><textarea class="aei${ro}" rows="1" onInput="autoGrow(this)"
+        <td><textarea class="aei${roFinal}" rows="1" onInput="autoGrow(this)"
           onchange="upAEntry('${nom}','impact',${mi},${li},this.value,'rem')" style="min-width:120px">${x(p?p.rem:'')}</textarea></td>
       </tr>`;
     }
