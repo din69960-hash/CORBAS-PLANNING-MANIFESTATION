@@ -1136,9 +1136,16 @@ function renderMois(cid,mois,isAdmin){
           onchange="upHeureField('${mois}',${ri2},'fin',this)"
           style="width:52px;text-align:center"></td>
         <td class="cdate">${r.ddate||'—'}</td>
-        <td><input class="ei${isAdmin?'':' admin-only'}" value="${x(r.trait)}"
-          ${isAdmin?`onchange="upMField('${mois}',${ri2},'trait',this.value)"`:'readonly'}
-          style="min-width:70px;font-size:11px;"></td>
+        <td><select class="ei${isAdmin?'':' admin-only'}"
+          ${isAdmin?`onchange="upMField('${mois}',${ri2},'trait',this.value)"`:'disabled'}
+          style="min-width:130px;font-size:11px;padding:3px 4px;background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.88);font-family:'Outfit',sans-serif;cursor:${isAdmin?'pointer':'default'};">
+          <option value="" ${!r.trait?'selected':''} style="background:#0D1F38;">— Aucun —</option>
+          <option value="À l'étude" ${r.trait==="À l'étude"?'selected':''} style="background:#0D1F38;">🔍 À l'étude</option>
+          <option value="Date confirmée" ${r.trait==='Date confirmée'?'selected':''} style="background:#0D1F38;">📅 Date confirmée</option>
+          <option value="Date confirmée - docs en attente" ${r.trait==='Date confirmée - docs en attente'?'selected':''} style="background:#0D1F38;">📄 Date confirmée - docs en attente</option>
+          <option value="Validation définitive" ${r.trait==='Validation définitive'?'selected':''} style="background:#0D1F38;">✅ Validation définitive</option>
+          <option value="Refus" ${r.trait==='Refus'?'selected':''} style="background:#0D1F38;">❌ Refus</option>
+        </select></td>
         <td><textarea class="ei${ro}" rows="1" onInput="autoGrow(this)"
           onchange="upMField('${mois}',${ri2},'rem',this.value);autoSync('${mois}',${ri2})"
           style="min-width:120px">${x(r.rem)}</textarea></td>
