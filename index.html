@@ -2540,5 +2540,56 @@ console.log('✅ Module gestion associations (sans mails) chargé.');
 
 })();
 </script>
+  <!-- ===== CORRECTIF SYNCHRONISATION (code agent, comptes, saisons) ===== -->
+<script>
+(function(){
+
+// Réécriture complète de la sauvegarde : ajoute mdpAgent, comptes et saisons
+window.saveToDB = async function(){
+  saveLocal();
+  if(!useDB) return;
+  try{
+    const { error } = await supabaseClient.from('planning').upsert({
+      id: 'main',
+      payload: {
+        mois:      S.mois,
+        act:       S.act,
+        acts_list: S.acts_list,
+        verrou:    S.verrou,
+        annee:     S.annee,
+        mdpAsso:   S.mdpAsso,
+        mdpAdmin:  S.mdpAdmin,
+        mdpAgent:  S.mdpAgent,
+        lieux:     S.lieux,
+        comptes:   S.comptes,
+        saisons:   S.saisons,
+        _client:   CLIENT_ID
+      },
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+  }catch(e){
+    console.warn('saveToDB error:', e);
+    setDBStatus('err');
+  }
+};
+
+// Les mises à jour temps réel doivent aussi transmettre ces trois champs
+if(typeof window.applyRemote === 'function'){
+  const _applyRemoteOriginal = window.applyRemote;
+  window.applyRemote = function(d){
+    if(d && d._client !== CLIENT_ID){
+      if(d.mdpAgent) S.mdpAgent = d.mdpAgent;
+      if(d.comptes)  S.comptes  = d.comptes;
+      if(d.saisons)  S.saisons  = d.saisons;
+    }
+    _applyRemoteOriginal(d);
+  };
+}
+
+console.log('✅ Correctif synchronisation chargé.');
+
+})();
+</script>
 </body>
 </html>
