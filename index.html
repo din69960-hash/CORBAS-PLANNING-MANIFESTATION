@@ -587,17 +587,33 @@ tr.conflict:hover td{background:rgba(198,40,40,.45)!important;}
 <div class="admin-bg">
   <div class="topbar blue"><h1>📍 Gestion des lieux</h1><button class="btn-back" onclick="go('pg-admin')">← Retour</button></div>
   <div class="wrap">
-    <h2>Créer ou supprimer un lieu</h2><p class="st">Ces lieux alimentent le menu déroulant du planning.</p>
-    <div class="fg"><label>Type</label>
+
+    <!-- SECTION 1 : CRÉER UN LIEU -->
+    <h2>➕ Créer un lieu</h2>
+    <p class="st">Ajoutez un nouveau lieu — il apparaîtra dans le planning.</p>
+    <div class="fg"><label>Type de lieu</label>
       <select id="lieu-type" style="width:100%;padding:10px 12px;border:2px solid #E2E8F0;border-radius:9px;font-size:15px;font-family:'Outfit',sans-serif;color:var(--texte);outline:none;background:#fff;">
         <option value="equipements">🏟️ Équipement sportif</option>
         <option value="salles">🏛️ Salle municipale</option>
       </select>
     </div>
-    <div class="fg"><label>Nom du lieu</label><input type="text" id="lieu-nom" class="inp-txt" placeholder="Ex: Gymnase Jean Jaurès..." onkeydown="if(event.key==='Enter')ajouterLieu()"></div>
-    <button class="save-btn" onclick="ajouterLieu()" style="margin-bottom:24px;">➕ Ajouter ce lieu</button>
-    <h3 style="font-size:16px;font-weight:700;color:var(--bleu);margin-bottom:14px;">Lieux existants</h3>
-    <div id="lieux-liste"></div>
+    <div class="fg"><label>Nom du lieu</label>
+      <input type="text" id="lieu-nom" class="inp-txt" placeholder="Ex: Gymnase Jean Jaurès..." onkeydown="if(event.key==='Enter')ajouterLieu()">
+    </div>
+    <button class="save-btn" onclick="ajouterLieu()" style="margin-bottom:36px;">➕ Ajouter ce lieu</button>
+
+    <!-- SECTION 2 : GÉRER LES LIEUX EXISTANTS -->
+    <h2>✏️ Modifier ou supprimer un lieu</h2>
+    <p class="st">Sélectionnez un type pour voir et gérer les lieux existants.</p>
+    <div class="fg"><label>Type de lieu à gérer</label>
+      <select id="lieu-gerer-type" onchange="renderLieuxGerer()" style="width:100%;padding:10px 12px;border:2px solid #E2E8F0;border-radius:9px;font-size:15px;font-family:'Outfit',sans-serif;color:var(--texte);outline:none;background:#fff;">
+        <option value="">-- Choisir un type --</option>
+        <option value="equipements">🏟️ Équipements sportifs</option>
+        <option value="salles">🏛️ Salles municipales</option>
+      </select>
+    </div>
+    <div id="lieux-gerer-liste"></div>
+
   </div>
 </div>
 </div>
@@ -1396,15 +1412,114 @@ function refreshConflicts(){
 
 // ===== ADMIN : gestion des lieux =====
 function renderLieuxListe(){
-  const c=document.getElementById('liste-lieux'); if(!c) return;
-  const bloc=(titre,cat)=>{
-    const items=S.lieux[cat].length
-      ?S.lieux[cat].map(l=>`<div class="lieu-item"><span>${x(l)}</span><button onclick="supprimerLieu('${cat}','${x(l).replace(/'/g,"\\'")}')">Supprimer</button></div>`).join('')
-      :'<p style="font-size:12px;color:#718096;font-style:italic;margin-bottom:8px;">Aucun lieu pour le moment.</p>';
-    return `<div class="lieu-cat-h">${titre} (${S.lieux[cat].length})</div>${items}`;
-  };
-  c.innerHTML=bloc('🏟️ Équipements sportifs','equipements')+bloc('🏛️ Salles municipales','salles');
+  // Appelée quand on arrive sur la page - reset le select de gestion
+  const sel = document.getElementById('lieu-gerer-type');
+  if(sel) sel.value = '';
+  const liste = document.getElementById('lieux-gerer-liste');
+  if(liste) liste.innerHTML = '';
 }
+
+function renderLieuxGerer(){
+  const type = document.getElementById('lieu-gerer-type').value;
+  const el = document.getElementById('lieux-gerer-liste');
+  if(!el) return;
+  if(!type){ el.innerHTML=''; return; }
+
+  const lieux = (S.lieux && S.lieux[type]) || [];
+  el.innerHTML = '';
+
+  if(!lieux.length){
+    el.innerHTML = '<p style="color:var(--texte2);font-size:13px;margin-top:12px;">Aucun lieu de ce type pour l\'instant.</p>';
+    return;
+  }
+
+  lieux.forEach((nom, idx) => {
+    const div = document.createElement('div');
+    div.className = 'vcard';
+    div.style.cssText = 'padding:12px 16px;margin-bottom:8px;gap:8px;';
+
+    // Champ nom modifiable
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = nom;
+    inp.style.cssText = 'flex:1;padding:7px 10px;border:2px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:Outfit,sans-serif;color:var(--texte);outline:none;';
+    inp.onfocus = ()=>{ inp.style.borderColor='var(--bleu3)'; };
+    inp.onblur  = ()=>{ inp.style.borderColor='#E2E8F0'; };
+
+    // Bouton modifier
+    const btnMod = document.createElement('button');
+    btnMod.textContent = '✏️ Modifier';
+    btnMod.style.cssText = 'background:var(--bleu);color:#fff;padding:7px 12px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-family:Outfit,sans-serif;white-space:nowrap;';
+    btnMod.onclick = ()=>{
+      const nouveau = inp.value.trim();
+      if(!nouveau){ toast('❌ Le nom ne peut pas être vide.'); return; }
+      if(nouveau === nom){ toast('Aucun changement.'); return; }
+      modifierLieu(type, nom, nouveau);
+    };
+
+    // Bouton supprimer
+    const btnSup = document.createElement('button');
+    btnSup.textContent = '🗑️';
+    btnSup.style.cssText = 'background:#C62828;color:#fff;padding:7px 12px;border-radius:8px;border:none;cursor:pointer;font-size:12px;';
+    btnSup.onclick = ()=> supprimerLieu(type, nom);
+
+    div.appendChild(inp);
+    div.appendChild(btnMod);
+    div.appendChild(btnSup);
+    el.appendChild(div);
+  });
+}
+
+function ajouterLieu(){
+  const type = document.getElementById('lieu-type').value;
+  const nom  = document.getElementById('lieu-nom').value.trim();
+  if(!nom){ toast('❌ Entrez un nom de lieu.'); return; }
+  if(!S.lieux) S.lieux = { equipements:[], salles:[] };
+  if(!S.lieux[type]) S.lieux[type] = [];
+  if(S.lieux[type].includes(nom)){ toast('❌ Ce lieu existe déjà.'); return; }
+  S.lieux[type].push(nom);
+  saveLocal(); saveToDB();
+  document.getElementById('lieu-nom').value = '';
+  toast('✅ Lieu ajouté : ' + nom);
+  renderLieuxGerer();
+}
+
+function supprimerLieu(type, nom){
+  showConfirm('🗑️ Supprimer "'+nom+'"',
+    'Ce lieu sera retiré du planning. Les manifestations déjà saisies avec ce lieu ne seront pas modifiées.',
+    ()=>{
+      S.lieux[type] = S.lieux[type].filter(l=>l!==nom);
+      saveLocal(); saveToDB();
+      renderLieuxGerer();
+      toast('🗑️ Lieu supprimé : '+nom);
+    }
+  );
+}
+
+function modifierLieu(type, ancien, nouveau){
+  showConfirm('✏️ Renommer "'+ancien+'"',
+    'Renommer en "'+nouveau+'" ? Les manifestations déjà saisies avec l’ancien nom seront mises à jour automatiquement.',
+    ()=>{
+      // Renommer dans la liste des lieux
+      const idx = S.lieux[type].indexOf(ancien);
+      if(idx >= 0) S.lieux[type][idx] = nouveau;
+
+      // Mettre à jour dans toutes les lignes du planning
+      MOIS.forEach(m=>{
+        S.mois[m].rows.forEach(r=>{
+          if(r.lieu === ancien) r.lieu = nouveau;
+          if(r.lieu2nom === ancien) r.lieu2nom = nouveau;
+        });
+      });
+
+      saveLocal(); saveToDB();
+      renderLieuxGerer();
+      toast('✅ "'+ancien+'" renommé en "'+nouveau+'" partout dans le planning.');
+    }
+  );
+}
+
+
 function ajouterLieu(){
   const cat=document.getElementById('lieu-cat-admin').value;
   const nom=document.getElementById('lieu-nom-admin').value.trim();
@@ -2350,246 +2465,6 @@ initSupabase();
   </div>
 </div>
 </div>
-<!-- ===== MODULE GESTION ASSOCIATIONS (version sans mails) ===== -->
-<script>
-(function(){
 
-// ============ A. MODALE « CRÉER UN COMPTE » : retrait de tout ce qui touche au mail ============
-function nettoyerCreerCompte(){
-  const m = document.getElementById('modal-creer-compte');
-  if(!m) return;
-  const champMail = document.getElementById('cc-mail');
-  if(champMail && champMail.closest('.modal-field')) champMail.closest('.modal-field').remove();
-  const consentements = m.querySelector('.consent-box');
-  if(consentements) consentements.remove();
-}
-
-window.creerCompteAsso = function(){
-  const nom  = document.getElementById('cc-nom').value.trim();
-  const mdp  = document.getElementById('cc-mdp').value.trim();
-  const mdp2 = document.getElementById('cc-mdp2').value.trim();
-  const err  = document.getElementById('err-creer-compte');
-  err.style.display = 'none';
-
-  const stop = function(msg){ err.textContent = msg; err.style.display = 'block'; };
-
-  if(!nom){ return stop('Choisissez votre association.'); }
-  if(S.comptes[nom]){ return stop('Un compte existe déjà pour cette association.'); }
-  if(!mdp || mdp.length < 4){ return stop('Mot de passe trop court (4 caractères minimum).'); }
-  if(mdp !== mdp2){ return stop('Les mots de passe ne correspondent pas.'); }
-
-  S.comptes[nom] = { mdp: mdp, createdAt: new Date().toISOString() };
-  saveLocal(); saveToDB();
-  document.getElementById('cc-mdp').value  = '';
-  document.getElementById('cc-mdp2').value = '';
-  closeModal('creer-compte');
-  toast('✅ Compte créé ! Vous pouvez maintenant vous connecter.');
-};
-
-
-// ============ B. RETRAIT DU MENU « CODE ASSOCIATION » ET DES ÉLÉMENTS MAIL ============
-function retirerElementsObsoletes(){
-  document.querySelectorAll('#pg-admin .acard').forEach(function(c){
-    if((c.getAttribute('onclick') || '').indexOf('pg-mdp-asso') !== -1) c.remove();
-  });
-  ['pg-mdp-asso','btn-prefs-asso','modal-prefs-mail'].forEach(function(id){
-    const el = document.getElementById(id);
-    if(el) el.remove();
-  });
-}
-
-
-// ============ C. MODALES DE GESTION D'UNE ASSOCIATION ============
-function creerModales(){
-  if(document.getElementById('modal-asso-actions')) return;
-
-  const actions = document.createElement('div');
-  actions.id = 'modal-asso-actions';
-  actions.className = 'modal-overlay';
-  actions.innerHTML =
-    '<div class="modal">'
-    + '<button class="modal-x" onclick="closeModal(\'asso-actions\')">✕</button>'
-    + '<span class="mi">🏢</span>'
-    + '<h3 id="aa-nom">Association</h3>'
-    + '<p id="aa-etat"></p>'
-    + '<button class="btn-v bv-blue" onclick="ouvrirChangerMdpAsso()">🔑 Modifier le mot de passe</button>'
-    + '<button class="btn-v bv-red" onclick="supprimerAssoDepuisModale()">🗑️ Supprimer l\'association</button>'
-    + '</div>';
-  document.body.appendChild(actions);
-
-  const mdp = document.createElement('div');
-  mdp.id = 'modal-asso-mdp';
-  mdp.className = 'modal-overlay';
-  mdp.innerHTML =
-    '<div class="modal">'
-    + '<button class="modal-x" onclick="closeModal(\'asso-mdp\')">✕</button>'
-    + '<span class="mi">🔑</span>'
-    + '<h3>Modifier le mot de passe</h3>'
-    + '<p id="am-sub"></p>'
-    + '<div class="modal-field"><label>Nouveau mot de passe</label>'
-    +   '<input type="password" id="am-mdp1" placeholder="Minimum 4 caractères"></div>'
-    + '<div class="modal-field"><label>Confirmer le nouveau mot de passe</label>'
-    +   '<input type="password" id="am-mdp2" placeholder="Confirmer"></div>'
-    + '<div class="err-msg" id="err-asso-mdp"></div>'
-    + '<button class="btn-v bv-blue" onclick="validerNouveauMdpAsso()">💾 Enregistrer</button>'
-    + '</div>';
-  document.body.appendChild(mdp);
-}
-
-let assoSelectionnee = null;
-
-window.ouvrirActionsAsso = function(nom){
-  creerModales();
-  assoSelectionnee = nom;
-  document.getElementById('aa-nom').textContent = nom;
-  const c = S.comptes[nom];
-  document.getElementById('aa-etat').textContent = (c && c.mdp)
-    ? 'Un compte existe pour cette association.'
-    : 'Aucun compte n\'a encore été créé pour cette association.';
-  openModal('asso-actions');
-};
-
-window.ouvrirChangerMdpAsso = function(){
-  if(!assoSelectionnee) return;
-  closeModal('asso-actions');
-  document.getElementById('am-sub').textContent = 'Association : ' + assoSelectionnee;
-  document.getElementById('am-mdp1').value = '';
-  document.getElementById('am-mdp2').value = '';
-  document.getElementById('err-asso-mdp').style.display = 'none';
-  openModal('asso-mdp');
-};
-
-window.validerNouveauMdpAsso = function(){
-  const n   = document.getElementById('am-mdp1').value.trim();
-  const c   = document.getElementById('am-mdp2').value.trim();
-  const err = document.getElementById('err-asso-mdp');
-  err.style.display = 'none';
-
-  const stop = function(msg){ err.textContent = msg; err.style.display = 'block'; };
-
-  if(!n || n.length < 4){ return stop('Mot de passe trop court (4 caractères minimum).'); }
-  if(n !== c){ return stop('Les deux mots de passe ne correspondent pas.'); }
-  if(!assoSelectionnee){ return stop('Aucune association sélectionnée.'); }
-
-  if(!S.comptes[assoSelectionnee]){
-    S.comptes[assoSelectionnee] = { createdAt: new Date().toISOString() };
-  }
-  S.comptes[assoSelectionnee].mdp = n;
-  saveLocal(); saveToDB();
-  closeModal('asso-mdp');
-  renderListeAssosAdmin();
-  toast('✅ Mot de passe modifié pour ' + assoSelectionnee);
-};
-
-window.supprimerAssoDepuisModale = function(){
-  const nom = assoSelectionnee;
-  closeModal('asso-actions');
-  if(nom) supprimerAssoDuPlanning(nom);
-};
-
-
-// ============ D. LISTE DES ASSOCIATIONS CLIQUABLE ============
-window.renderListeAssosAdmin = function(){
-  const el = document.getElementById('liste-assos-admin');
-  if(!el) return;
-  creerModales();
-  el.innerHTML = '';
-
-  if(!S.acts_list || !S.acts_list.length){
-    el.innerHTML = '<p style="color:var(--texte2);font-size:13px;">Aucune association.</p>';
-    return;
-  }
-
-  S.acts_list.forEach(function(a){
-    const compte = S.comptes[a];
-    const aUnCompte = !!(compte && compte.mdp);
-    const div = document.createElement('div');
-    div.className = 'vcard';
-    div.style.cssText = 'padding:12px 16px;margin-bottom:8px;cursor:pointer;';
-    div.onclick = function(){ ouvrirActionsAsso(a); };
-    div.innerHTML =
-      '<div style="flex:1;">'
-      + '<div style="font-size:14px;font-weight:600;">' + a + '</div>'
-      + '<div style="font-size:11px;color:var(--texte2);margin-top:2px;">'
-      +   (aUnCompte ? '✅ Compte créé' : '⚠️ Pas encore de compte')
-      + '</div></div>'
-      + '<span style="color:var(--bleu);font-size:12px;font-weight:600;white-space:nowrap;">Gérer ›</span>';
-    el.appendChild(div);
-  });
-};
-
-
-// ============ E. LANCEMENT ============
-function initialiser(){
-  nettoyerCreerCompte();
-  retirerElementsObsoletes();
-  creerModales();
-  if(document.getElementById('pg-gestion-assos')
-     && document.getElementById('pg-gestion-assos').classList.contains('active')){
-    renderListeAssosAdmin();
-  }
-}
-
-if(document.readyState === 'loading'){
-  document.addEventListener('DOMContentLoaded', initialiser);
-} else {
-  initialiser();
-}
-
-console.log('✅ Module gestion associations (sans mails) chargé.');
-
-})();
-</script>
-  <!-- ===== CORRECTIF SYNCHRONISATION (code agent, comptes, saisons) ===== -->
-<script>
-(function(){
-
-// Réécriture complète de la sauvegarde : ajoute mdpAgent, comptes et saisons
-window.saveToDB = async function(){
-  saveLocal();
-  if(!useDB) return;
-  try{
-    const { error } = await supabaseClient.from('planning').upsert({
-      id: 'main',
-      payload: {
-        mois:      S.mois,
-        act:       S.act,
-        acts_list: S.acts_list,
-        verrou:    S.verrou,
-        annee:     S.annee,
-        mdpAsso:   S.mdpAsso,
-        mdpAdmin:  S.mdpAdmin,
-        mdpAgent:  S.mdpAgent,
-        lieux:     S.lieux,
-        comptes:   S.comptes,
-        saisons:   S.saisons,
-        _client:   CLIENT_ID
-      },
-      updated_at: new Date().toISOString()
-    });
-    if(error) throw error;
-  }catch(e){
-    console.warn('saveToDB error:', e);
-    setDBStatus('err');
-  }
-};
-
-// Les mises à jour temps réel doivent aussi transmettre ces trois champs
-if(typeof window.applyRemote === 'function'){
-  const _applyRemoteOriginal = window.applyRemote;
-  window.applyRemote = function(d){
-    if(d && d._client !== CLIENT_ID){
-      if(d.mdpAgent) S.mdpAgent = d.mdpAgent;
-      if(d.comptes)  S.comptes  = d.comptes;
-      if(d.saisons)  S.saisons  = d.saisons;
-    }
-    _applyRemoteOriginal(d);
-  };
-}
-
-console.log('✅ Correctif synchronisation chargé.');
-
-})();
-</script>
 </body>
 </html>
