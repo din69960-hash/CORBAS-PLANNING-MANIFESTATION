@@ -1115,6 +1115,10 @@ function renderMois(cid,mois,isAdmin){
         ${weekRange?`<div style="font-size:11px;color:rgba(100,180,255,.85);font-weight:400;white-space:normal;margin-top:4px;line-height:1.4;">${weekRange}</div>`:''}
       </td>`:'';
       const ri2=r.ri;
+      // Masquer les lignes "Particulier" pour les associations
+      if(!isAdmin && currentUser && currentUser.role==='asso' && (r.org||'').trim().toLowerCase()==='particulier'){
+        return; // ne pas afficher cette ligne
+      }
       const isConf=conf.has(mois+'|'+ri2);
       rows+=`<tr data-crow="${mois}|${ri2}" class="sem-${si%2===0?'even':'odd'}${isF?' sc':''}${isConf?' conflict':''}">
         ${sc}
